@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEPSE Real-Time WebSocket</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a237e;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .control-panel input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 150px;
+        }
+        .control-panel input:focus {
+            outline: none;
+            border-color: #1a237e;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-connect {
+            background: #1a237e;
+            color: white;
+        }
+        .btn-connect:hover:not(:disabled) {
+            background: #0d1642;
+        }
+        .btn-disconnect {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-disconnect:hover:not(:disabled) {
+            background: #a71d2a;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .status-connecting {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .data-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 150px;
+            margin-top: 15px;
+        }
+        .error-message {
+            color: #dc3545;
+            padding: 10px;
+            text-align: center;
+        }
+        .waiting-message {
+            color: #999;
+            text-align: center;
+            padding: 20px;
+        }
+        .stock-symbol {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .stock-price {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .stock-change {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .neutral { color: #ffc107; }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .detail-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .detail-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .detail-value {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+        .update-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+            text-align: right;
+        }
+        .history-box {
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .history-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .history-entry:last-child {
+            border-bottom: none;
+        }
+        .company-name {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stats-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        .stat-label {
+            color: #999;
+            font-size: 12px;
+        }
+        .stat-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .control-panel {
+                flex-direction: column;
+            }
+            .control-panel input {
+                width: 100%;
+            }
+            .stock-price {
+                font-size: 36px;
+            }
+            .details-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <span>📡 NEPSE Real-Time</span>
+        </h1>
+
+        <div class="control-panel">
+            <input type="text" id="symbolInput" value="HHL" placeholder="Enter symbol (e.g., NABIL, HHL)">
+            <button class="btn btn-connect" id="connectBtn" onclick="connectWebSocket()">🔌 Connect</button>
+            <button class="btn btn-disconnect" id="disconnectBtn" onclick="disconnectWebSocket()" disabled>⛔ Disconnect</button>
+        </div>
+
+        <div id="status" class="status status-disconnected">⛔ Disconnected</div>
+
+        <div class="data-container" id="dataContainer">
+            <div class="waiting-message">📊 Waiting for data... Connect to a symbol to start.</div>
+        </div>
+
+        <div class="history-box" id="historyBox">
+            <div style="color: #999;">📜 History will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let symbol = '';
+        let updateCount = 0;
+
+        function updateStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status status-${type}`;
+        }
+
+        function connectWebSocket() {
+            symbol = document.getElementById('symbolInput').value.toUpperCase().trim();
+            if (!symbol) {
+                alert('Please enter a symbol!');
+                return;
+            }
+
+            updateStatus(`🔄 Connecting to ${symbol}...`, 'connecting');
+            document.getElementById('connectBtn').disabled = true;
+
+            try {
+                ws = new WebSocket(`ws://localhost:8000/ws/${symbol}`);
+
+                ws.onopen = function() {
+                    updateStatus(`✅ Connected to ${symbol}`, 'connected');
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('dataContainer').innerHTML = '<div class="waiting-message">⏳ Waiting for first update...</div>';
+                    updateCount = 0;
+                    document.getElementById('historyBox').innerHTML = '<div style="color: #999;">📜 History will appear here...</div>';
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        updateCount++;
+                        displayData(data);
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    updateStatus('❌ WebSocket Error! Check if server is running.', 'error');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    console.error('WebSocket Error:', error);
+                    document.getElementById('dataContainer').innerHTML = `
+                        <div class="error-message">❌ Connection error. Make sure the server is running on port 8000.</div>
+                    `;
+                };
+
+                ws.onclose = function() {
+                    updateStatus('⛔ Disconnected', 'disconnected');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                };
+
+            } catch (error) {
+                updateStatus(`❌ Failed to connect: ${error.message}`, 'error');
+                document.getElementById('connectBtn').disabled = false;
+                console.error('Connection error:', error);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                updateStatus('⛔ Disconnected', 'disconnected');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        function displayData(data) {
+            // Check for error
+            if (data.error) {
+                document.getElementById('dataContainer').innerHTML = `
+                    <div class="error-message">❌ ${data.error}</div>
+                `;
+                return;
+            }
+
+            // Check if we have valid data
+            if (!data.symbol || data.price === undefined) {
+                document.getElementById('dataContainer').innerHTML = `
+                    <div class="error-message">⚠️ Invalid data received</div>
+                `;
+                return;
+            }
+
+            const change = data.change || 0;
+            const changePercent = data.change_percent || 0;
+            const isPositive = change >= 0;
+            const isNegative = change < 0;
+            const changeClass = isPositive ? 'positive' : (isNegative ? 'negative' : 'neutral');
+
+            const price = data.price || 0;
+            const volume = data.volume || 0;
+            const open = data.open || 0;
+            const high = data.high || 0;
+            const low = data.low || 0;
+            const prevClose = data.prev_close || 0;
+            const turnover = data.turnover || 0;
+            const transactions = data.transactions || 0;
+            const companyName = data.company_name || '';
+            const time = data.server_time || new Date(data.timestamp).toLocaleTimeString();
+
+            document.getElementById('dataContainer').innerHTML = `
+                <div class="stock-symbol">${data.symbol} ${companyName ? '· ' + companyName : ''}</div>
+                <div class="stock-price">₹${price.toFixed(2)}</div>
+                <div class="stock-change ${changeClass}">
+                    ${isPositive ? '▲' : (isNegative ? '▼' : '—')} 
+                    ${change.toFixed(2)} (${changePercent.toFixed(2)}%)
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-label">Volume:</span>
+                        <span class="stat-value">${volume.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Turnover:</span>
+                        <span class="stat-value">₹${turnover.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Trades:</span>
+                        <span class="stat-value">${transactions}</span>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Open</div>
+                        <div class="detail-value">₹${open.toFixed(2)}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">High</div>
+                        <div class="detail-value">₹${high.toFixed(2)}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Low</div>
+                        <div class="detail-value">₹${low.toFixed(2)}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Prev Close</div>
+                        <div class="detail-value">₹${prevClose.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <div class="update-time">🕐 Updated: ${time}</div>
+            `;
+
+            // Add to history
+            const historyBox = document.getElementById('historyBox');
+            const entry = document.createElement('div');
+            entry.className = 'history-entry';
+            const changeSymbol = isPositive ? '▲' : (isNegative ? '▼' : '—');
+            entry.textContent = `#${updateCount} ${time} - ${data.symbol}: ₹${price.toFixed(2)} ${changeSymbol} ${changePercent.toFixed(2)}%`;
+            historyBox.prepend(entry);
+
+            // Keep only last 15 entries
+            while (historyBox.children.length > 15) {
+                historyBox.removeChild(historyBox.lastChild);
+            }
+        }
+
+        // Enter key to connect
+        document.getElementById('symbolInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connectWebSocket();
+            }
+        });
+
+        // Auto-connect on page load
+        window.onload = function() {
+            setTimeout(connectWebSocket, 500);
+        };
+    </script>
+</body>
+</html>
